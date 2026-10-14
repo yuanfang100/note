@@ -1,0 +1,1064 @@
+<template>
+  <div class="meditation-app">
+    <!-- 状态栏 -->
+    <div class="status-bar">
+      <span class="time">9:41</span>
+      <div class="status-icons">
+        <span class="signal">●●●●○</span>
+        <span class="wifi">WiFi</span>
+        <span class="battery">🔋</span>
+      </div>
+    </div>
+
+    <!-- 主页面 -->
+    <div class="main-content" :class="{ 'breathing-active': isBreathing }">
+      <!-- 顶部问候 -->
+      <header class="greeting-section">
+        <div class="greeting-text">
+          <p class="greeting-time">{{ greetingText }}</p>
+          <h1 class="user-name">探索内心宁静</h1>
+        </div>
+        <div class="profile-avatar">
+          <div class="avatar-circle">
+            <span>🧘</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- 每日目标进度 -->
+      <section class="daily-goal">
+        <div class="goal-card">
+          <div class="goal-info">
+            <h3>今日冥想</h3>
+            <p class="goal-progress">{{ dailyMinutes }} / {{ goalMinutes }} 分钟</p>
+          </div>
+          <div class="progress-ring">
+            <svg viewBox="0 0 100 100">
+              <circle class="progress-bg" cx="50" cy="50" r="40" />
+              <circle
+                class="progress-fill"
+                cx="50"
+                cy="50"
+                r="40"
+                :style="{ strokeDashoffset: progressOffset }"
+              />
+            </svg>
+            <span class="progress-text">{{ Math.round(progressPercent) }}%</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 呼吸练习区域 -->
+      <section class="breathing-section">
+        <h2 class="section-title">呼吸练习</h2>
+        <div class="breathing-container">
+          <div class="breathing-circle" :class="breathingClass">
+            <div class="inner-circle">
+              <span class="breathing-text">{{ breathingText }}</span>
+            </div>
+          </div>
+          <div class="breathing-controls">
+            <button
+              class="breathing-btn"
+              :class="{ active: breathingPattern === '4-7-8' }"
+              @click="setBreathingPattern('4-7-8')"
+            >
+              4-7-8 放松
+            </button>
+            <button
+              class="breathing-btn"
+              :class="{ active: breathingPattern === 'box' }"
+              @click="setBreathingPattern('box')"
+            >
+              方块呼吸
+            </button>
+            <button
+              class="breathing-btn"
+              :class="{ active: breathingPattern === 'calm' }"
+              @click="setBreathingPattern('calm')"
+            >
+              平静呼吸
+            </button>
+          </div>
+          <button class="start-breathing-btn" @click="toggleBreathing">
+            {{ isBreathing ? '停止练习' : '开始练习' }}
+          </button>
+        </div>
+      </section>
+
+      <!-- 冥想课程 -->
+      <section class="meditation-courses">
+        <h2 class="section-title">冥想课程</h2>
+        <div class="courses-scroll">
+          <div
+            v-for="course in courses"
+            :key="course.id"
+            class="course-card"
+            :style="{ background: course.gradient }"
+            @click="selectCourse(course)"
+          >
+            <div class="course-icon">{{ course.icon }}</div>
+            <h3>{{ course.title }}</h3>
+            <p>{{ course.duration }}分钟</p>
+            <div class="course-tag">{{ course.level }}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 环境音效 -->
+      <section class="sounds-section">
+        <h2 class="section-title">环境音效</h2>
+        <div class="sounds-grid">
+          <div
+            v-for="sound in sounds"
+            :key="sound.id"
+            class="sound-item"
+            :class="{ active: activeSound === sound.id }"
+            @click="toggleSound(sound)"
+          >
+            <div class="sound-icon">{{ sound.icon }}</div>
+            <span>{{ sound.name }}</span>
+            <div v-if="activeSound === sound.id" class="sound-wave">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 冥想计时器 -->
+      <section class="timer-section" v-if="showTimer">
+        <div class="timer-overlay">
+          <div class="timer-card">
+            <button class="close-timer" @click="closeTimer">✕</button>
+            <h2>{{ selectedCourse?.title || '自由冥想' }}</h2>
+            <div class="timer-display">
+              <div class="timer-circle">
+                <svg viewBox="0 0 200 200">
+                  <circle class="timer-bg" cx="100" cy="100" r="90" />
+                  <circle
+                    class="timer-progress"
+                    cx="100"
+                    cy="100"
+                    r="90"
+                    :style="{ strokeDashoffset: timerOffset }"
+                  />
+                </svg>
+                <div class="timer-time">
+                  <span class="minutes">{{ formatTime(timerSeconds).minutes }}</span>
+                  <span class="separator">:</span>
+                  <span class="seconds">{{ formatTime(timerSeconds).seconds }}</span>
+                </div>
+              </div>
+            </div>
+            <p class="timer-instruction">{{ timerInstruction }}</p>
+            <div class="timer-controls">
+              <button class="timer-btn secondary" @click="resetTimer">重置</button>
+              <button class="timer-btn primary" @click="toggleTimer">
+                {{ isTimerRunning ? '暂停' : '开始' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 底部导航 -->
+    <nav class="bottom-nav">
+      <div class="nav-item active">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label">首页</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">📚</span>
+        <span class="nav-label">课程</span>
+      </div>
+      <div class="nav-item center" @click="showTimer = true">
+        <div class="meditate-btn">
+          <span>🧘</span>
+        </div>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">统计</span>
+      </div>
+      <div class="nav-item">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">设置</span>
+      </div>
+    </nav>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'MeditationApp',
+  data() {
+    return {
+      // 用户数据
+      dailyMinutes: 15,
+      goalMinutes: 20,
+
+      // 呼吸练习
+      isBreathing: false,
+      breathingPattern: '4-7-8',
+      breathingPhase: 'inhale',
+      breathingText: '开始',
+      breathingTimer: null,
+      breathingSeconds: 0,
+
+      // 冥想课程
+      courses: [
+        {
+          id: 1,
+          title: '晨间冥想',
+          duration: 10,
+          icon: '🌅',
+          level: '入门',
+          gradient: 'linear-gradient(135deg, #E8D5B7 0%, #F5E6D3 100%)'
+        },
+        {
+          id: 2,
+          title: '深度放松',
+          duration: 20,
+          icon: '🌊',
+          level: '进阶',
+          gradient: 'linear-gradient(135deg, #B8D4E3 0%, #D4E6F1 100%)'
+        },
+        {
+          id: 3,
+          title: '睡前冥想',
+          duration: 15,
+          icon: '🌙',
+          level: '入门',
+          gradient: 'linear-gradient(135deg, #D5C4E0 0%, #E8DDEF 100%)'
+        },
+        {
+          id: 4,
+          title: '专注训练',
+          duration: 12,
+          icon: '🎯',
+          level: '中级',
+          gradient: 'linear-gradient(135deg, #C5DED0 0%, #D8EDE3 100%)'
+        }
+      ],
+      selectedCourse: null,
+
+      // 环境音效
+      sounds: [
+        { id: 1, name: '雨声', icon: '🌧️' },
+        { id: 2, name: '海浪', icon: '🌊' },
+        { id: 3, name: '森林', icon: '🌲' },
+        { id: 4, name: '篝火', icon: '🔥' },
+        { id: 5, name: '溪流', icon: '💧' },
+        { id: 6, name: '鸟鸣', icon: '🐦' }
+      ],
+      activeSound: null,
+
+      // 计时器
+      showTimer: false,
+      timerSeconds: 600,
+      totalTimerSeconds: 600,
+      isTimerRunning: false,
+      timerInterval: null,
+      timerInstruction: '准备好了吗？让我们开始冥想之旅'
+    }
+  },
+  computed: {
+    greetingText() {
+      const hour = new Date().getHours()
+      if (hour < 6) return '夜深了'
+      if (hour < 12) return '早安'
+      if (hour < 18) return '午安'
+      return '晚安'
+    },
+    progressPercent() {
+      return (this.dailyMinutes / this.goalMinutes) * 100
+    },
+    progressOffset() {
+      const circumference = 2 * Math.PI * 40
+      return circumference - (this.progressPercent / 100) * circumference
+    },
+    breathingClass() {
+      if (!this.isBreathing) return ''
+      return `breathing-${this.breathingPhase}`
+    },
+    timerOffset() {
+      const circumference = 2 * Math.PI * 90
+      const progress = this.timerSeconds / this.totalTimerSeconds
+      return circumference * (1 - progress)
+    }
+  },
+  methods: {
+    // 呼吸练习方法
+    setBreathingPattern(pattern) {
+      this.breathingPattern = pattern
+      if (this.isBreathing) {
+        this.stopBreathing()
+      }
+    },
+    toggleBreathing() {
+      if (this.isBreathing) {
+        this.stopBreathing()
+      } else {
+        this.startBreathing()
+      }
+    },
+    startBreathing() {
+      this.isBreathing = true
+      this.breathingPhase = 'inhale'
+      this.runBreathingCycle()
+    },
+    stopBreathing() {
+      this.isBreathing = false
+      this.breathingText = '开始'
+      if (this.breathingTimer) {
+        clearTimeout(this.breathingTimer)
+      }
+    },
+    runBreathingCycle() {
+      if (!this.isBreathing) return
+
+      const patterns = {
+        '4-7-8': { inhale: 4, hold: 7, exhale: 8 },
+        'box': { inhale: 4, hold: 4, exhale: 4, holdAfter: 4 },
+        'calm': { inhale: 4, exhale: 6 }
+      }
+
+      const pattern = patterns[this.breathingPattern]
+      let totalTime = 0
+
+      const phases = []
+      if (pattern.inhale) phases.push({ name: 'inhale', text: '吸气', duration: pattern.inhale })
+      if (pattern.hold) phases.push({ name: 'hold', text: '屏息', duration: pattern.hold })
+      if (pattern.exhale) phases.push({ name: 'exhale', text: '呼气', duration: pattern.exhale })
+      if (pattern.holdAfter) phases.push({ name: 'hold', text: '屏息', duration: pattern.holdAfter })
+
+      let phaseIndex = 0
+
+      const runPhase = () => {
+        if (!this.isBreathing) return
+
+        const phase = phases[phaseIndex]
+        this.breathingPhase = phase.name
+        this.breathingText = phase.text
+
+        this.breathingTimer = setTimeout(() => {
+          phaseIndex = (phaseIndex + 1) % phases.length
+          runPhase()
+        }, phase.duration * 1000)
+      }
+
+      runPhase()
+    },
+
+    // 课程选择
+    selectCourse(course) {
+      this.selectedCourse = course
+      this.timerSeconds = course.duration * 60
+      this.totalTimerSeconds = course.duration * 60
+      this.showTimer = true
+    },
+
+    // 音效控制
+    toggleSound(sound) {
+      this.activeSound = this.activeSound === sound.id ? null : sound.id
+    },
+
+    // 计时器方法
+    toggleTimer() {
+      if (this.isTimerRunning) {
+        this.pauseTimer()
+      } else {
+        this.startTimer()
+      }
+    },
+    startTimer() {
+      this.isTimerRunning = true
+      this.timerInstruction = '闭上眼睛，专注于呼吸...'
+
+      this.timerInterval = setInterval(() => {
+        if (this.timerSeconds > 0) {
+          this.timerSeconds--
+          this.updateTimerInstruction()
+        } else {
+          this.completeTimer()
+        }
+      }, 1000)
+    },
+    pauseTimer() {
+      this.isTimerRunning = false
+      if (this.timerInterval) {
+        clearInterval(this.timerInterval)
+      }
+      this.timerInstruction = '冥想已暂停'
+    },
+    resetTimer() {
+      this.pauseTimer()
+      this.timerSeconds = this.totalTimerSeconds
+      this.timerInstruction = '准备好了吗？让我们开始冥想之旅'
+    },
+    closeTimer() {
+      this.pauseTimer()
+      this.showTimer = false
+      this.selectedCourse = null
+    },
+    completeTimer() {
+      this.pauseTimer()
+      this.dailyMinutes += Math.round(this.totalTimerSeconds / 60)
+      this.timerInstruction = '冥想完成，感谢您的坚持 🙏'
+      setTimeout(() => {
+        this.closeTimer()
+      }, 3000)
+    },
+    updateTimerInstruction() {
+      const percentDone = (this.totalTimerSeconds - this.timerSeconds) / this.totalTimerSeconds
+      if (percentDone < 0.25) {
+        this.timerInstruction = '放松身体，释放紧张...'
+      } else if (percentDone < 0.5) {
+        this.timerInstruction = '深呼吸，让思绪平静...'
+      } else if (percentDone < 0.75) {
+        this.timerInstruction = '感受内心的宁静...'
+      } else {
+        this.timerInstruction = '即将完成，保持觉知...'
+      }
+    },
+    formatTime(seconds) {
+      const mins = Math.floor(seconds / 60)
+      const secs = seconds % 60
+      return {
+        minutes: String(mins).padStart(2, '0'),
+        seconds: String(secs).padStart(2, '0')
+      }
+    }
+  },
+  beforeUnmount() {
+    if (this.breathingTimer) clearTimeout(this.breathingTimer)
+    if (this.timerInterval) clearInterval(this.timerInterval)
+  }
+}
+</script>
+
+<style scoped>
+/* 基础变量 */
+:root {
+  --primary: #7E9BB5;
+  --primary-light: #A8C5D8;
+  --secondary: #B5A8D4;
+  --accent: #D4B8A8;
+  --background: #F8F6F3;
+  --surface: #FFFFFF;
+  --text-primary: #4A4A4A;
+  --text-secondary: #8A8A8A;
+  --success: #A8D4B5;
+  --warning: #D4C5A8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.meditation-app {
+  width: 390px;
+  height: 844px;
+  background: linear-gradient(180deg, #F0EBE3 0%, #E8E2D9 50%, #F5F0E8 100%);
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #4A4A4A;
+  overflow-y: auto;
+  position: relative;
+  border-radius: 40px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}
+
+/* 状态栏 */
+.status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-icons {
+  display: flex;
+  gap: 8px;
+  font-size: 12px;
+}
+
+/* 主内容 */
+.main-content {
+  padding: 0 20px 100px;
+}
+
+/* 问候区域 */
+.greeting-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.greeting-time {
+  font-size: 14px;
+  color: #8A8A8A;
+  margin-bottom: 4px;
+}
+
+.user-name {
+  font-size: 24px;
+  font-weight: 600;
+  color: #4A4A4A;
+}
+
+.profile-avatar {
+  position: relative;
+}
+
+.avatar-circle {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #D4C5A8 0%, #E8D5B7 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+/* 每日目标 */
+.daily-goal {
+  margin-bottom: 24px;
+}
+
+.goal-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.goal-info h3 {
+  font-size: 14px;
+  color: #8A8A8A;
+  margin-bottom: 4px;
+}
+
+.goal-progress {
+  font-size: 20px;
+  font-weight: 600;
+  color: #4A4A4A;
+}
+
+.progress-ring {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.progress-ring svg {
+  transform: rotate(-90deg);
+}
+
+.progress-bg {
+  fill: none;
+  stroke: #E8E2D9;
+  stroke-width: 8;
+}
+
+.progress-fill {
+  fill: none;
+  stroke: #7E9BB5;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.5s ease;
+  stroke-dasharray: 251.2;
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+  font-weight: 600;
+  color: #7E9BB5;
+}
+
+/* 呼吸练习 */
+.breathing-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #4A4A4A;
+}
+
+.breathing-container {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  padding: 24px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.breathing-circle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #B8D4E3 0%, #D4E6F1 100%);
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 4s ease-in-out;
+  position: relative;
+}
+
+.breathing-circle::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0.5;
+  animation: pulse 4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.1); opacity: 0.3; }
+}
+
+.breathing-circle.breathing-inhale {
+  transform: scale(1.2);
+}
+
+.breathing-circle.breathing-exhale {
+  transform: scale(0.8);
+}
+
+.breathing-circle.breathing-hold {
+  transform: scale(1);
+}
+
+.inner-circle {
+  position: relative;
+  z-index: 1;
+}
+
+.breathing-text {
+  font-size: 18px;
+  font-weight: 500;
+  color: #4A4A4A;
+}
+
+.breathing-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.breathing-btn {
+  padding: 8px 16px;
+  border: none;
+  background: #F0EBE3;
+  border-radius: 20px;
+  font-size: 12px;
+  color: #8A8A8A;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.breathing-btn.active {
+  background: #7E9BB5;
+  color: white;
+}
+
+.start-breathing-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  background: linear-gradient(135deg, #7E9BB5 0%, #A8C5D8 100%);
+  border-radius: 25px;
+  color: white;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.start-breathing-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(126, 155, 181, 0.4);
+}
+
+/* 冥想课程 */
+.meditation-courses {
+  margin-bottom: 24px;
+}
+
+.courses-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.courses-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.course-card {
+  min-width: 140px;
+  padding: 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+}
+
+.course-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.course-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.course-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: #4A4A4A;
+}
+
+.course-card p {
+  font-size: 12px;
+  color: #6A6A6A;
+  margin-bottom: 8px;
+}
+
+.course-tag {
+  display: inline-block;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 10px;
+  font-size: 10px;
+  color: #6A6A6A;
+}
+
+/* 环境音效 */
+.sounds-section {
+  margin-bottom: 24px;
+}
+
+.sounds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.sound-item {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+}
+
+.sound-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.sound-item.active {
+  background: linear-gradient(135deg, #7E9BB5 0%, #A8C5D8 100%);
+  color: white;
+}
+
+.sound-icon {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.sound-item span {
+  font-size: 12px;
+  display: block;
+}
+
+.sound-wave {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  margin-top: 8px;
+}
+
+.sound-wave span {
+  width: 3px;
+  height: 12px;
+  background: white;
+  border-radius: 2px;
+  animation: wave 1s ease-in-out infinite;
+}
+
+.sound-wave span:nth-child(2) {
+  animation-delay: 0.2s;
+  height: 16px;
+}
+
+.sound-wave span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes wave {
+  0%, 100% { transform: scaleY(0.5); }
+  50% { transform: scaleY(1); }
+}
+
+/* 计时器覆盖层 */
+.timer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.timer-card {
+  background: linear-gradient(180deg, #F0EBE3 0%, #E8E2D9 100%);
+  border-radius: 30px;
+  padding: 32px;
+  width: 340px;
+  text-align: center;
+  position: relative;
+}
+
+.close-timer {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: #8A8A8A;
+  cursor: pointer;
+}
+
+.timer-card h2 {
+  font-size: 20px;
+  margin-bottom: 24px;
+  color: #4A4A4A;
+}
+
+.timer-display {
+  margin-bottom: 24px;
+}
+
+.timer-circle {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+}
+
+.timer-circle svg {
+  transform: rotate(-90deg);
+}
+
+.timer-bg {
+  fill: none;
+  stroke: #E8E2D9;
+  stroke-width: 8;
+}
+
+.timer-progress {
+  fill: none;
+  stroke: #7E9BB5;
+  stroke-width: 8;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+  stroke-dasharray: 565.2;
+}
+
+.timer-time {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: baseline;
+}
+
+.minutes, .seconds {
+  font-size: 48px;
+  font-weight: 300;
+  color: #4A4A4A;
+}
+
+.separator {
+  font-size: 48px;
+  font-weight: 300;
+  color: #8A8A8A;
+  margin: 0 4px;
+}
+
+.timer-instruction {
+  font-size: 14px;
+  color: #8A8A8A;
+  margin-bottom: 24px;
+  min-height: 20px;
+}
+
+.timer-controls {
+  display: flex;
+  gap: 12px;
+}
+
+.timer-btn {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  border-radius: 25px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.timer-btn.secondary {
+  background: #F0EBE3;
+  color: #8A8A8A;
+}
+
+.timer-btn.primary {
+  background: linear-gradient(135deg, #7E9BB5 0%, #A8C5D8 100%);
+  color: white;
+}
+
+.timer-btn:hover {
+  transform: translateY(-2px);
+}
+
+/* 底部导航 */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 390px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: 12px 0 28px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: color 0.3s ease;
+}
+
+.nav-item.active .nav-label {
+  color: #7E9BB5;
+}
+
+.nav-icon {
+  font-size: 24px;
+}
+
+.nav-label {
+  font-size: 10px;
+  color: #8A8A8A;
+}
+
+.nav-item.center {
+  margin-top: -30px;
+}
+
+.meditate-btn {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #7E9BB5 0%, #A8C5D8 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 6px 20px rgba(126, 155, 181, 0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.meditate-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 25px rgba(126, 155, 181, 0.5);
+}
+
+/* 响应式 */
+@media (max-width: 430px) {
+  .meditation-app {
+    width: 100%;
+    height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .bottom-nav {
+    width: 100%;
+  }
+}
+
+/* 滚动条样式 */
+.main-content::-webkit-scrollbar {
+  width: 0;
+}
+
+/* 动画 */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.greeting-section,
+.daily-goal,
+.breathing-section,
+.meditation-courses,
+.sounds-section {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+.daily-goal { animation-delay: 0.1s; }
+.breathing-section { animation-delay: 0.2s; }
+.meditation-courses { animation-delay: 0.3s; }
+.sounds-section { animation-delay: 0.4s; }
+</style>

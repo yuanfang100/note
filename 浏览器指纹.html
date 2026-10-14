@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+
+
+</body>
+<script>
+  // 基本指纹，作用不是太大，不能作为唯一标识
+  /**
+   * 基本指纹是任何浏览器都具有的特征标识，比如硬件类型（Apple）、操作系统（Mac OS）、用户代理（User agent）、系统字体、语言、屏幕分辨率、浏览器插件 (Flash, Silverlight, Java, etc)、浏览器扩展、浏览器设置 (Do-Not-Track, etc)、时区差（Browser GMT Offset）等众多信息，这些指纹信息“类似”人类的身高、年龄等，有很大的冲突概率，只能作为辅助识别。
+
+硬件类型：
+
+操作系统：navigator.platform
+
+用户代理（浏览器类型）：navigator.userAgent
+
+浏览器版本号：navigator.appVersion
+
+浏览器是否启动cookie：navigator.cookieEnabled
+
+cpu等级：navigator.cpuClass
+
+cpu虚拟核心数：navigator.hardwareConcurrency
+
+系统语言：navigator.language
+
+屏幕分辨率：window.screen
+
+浏览器插件：navigator.plugins
+
+时差区：new Date().getTimezoneOffset()   //-480  （负值是东区，480分钟为8小时，所以中国是东八区）
+
+颜色质量：window.screen.colorDepth
+判断是否IE
+判断是否firefox
+拿到浏览器指纹的地理位置， navigator.geolocation.getCurrentPosition
+
+
+高就指纹
+1. 在cookie中种入UUID
+
+
+   * 
+   * 
+  */
+  //  高级指纹 uuid
+
+  function createUuid() {
+    function rand(len) {
+      var hex = "0123456789abcdef",
+        str = "",
+        index = 0;
+      for (len = len || 32; len > index; index++) {
+        str += hex.charAt(Math.ceil(1e8 * Math.random()) % hex.length);
+      }
+      return str;
+    }
+
+    var uuid = (new Date).getTime() + "_" + rand();
+    return uuid
+  }
+  console.log('uuid----', createUuid())
+
+
+
+  // 高级指纹 canvas 指纹
+  // 从根本上来说，每一种浏览器都会使用不同的图像处理引擎，不同的导出选项，不同的压缩等级，所以每一台电脑绘制出的图形都会有些许不同，这些图案可以被用来给用户设备分配特定编号（指纹），也就是说可以用来识别不同用户。
+  // 测试结果表明，同一浏览器访问同一个域时生成的CRC校验码总是不变。可以简单理解为同样的HTML Canvas元素绘制操作，在不同的操作系统不同的浏览器上，产生的图片内容其实是不完全相同的。出现这种情况可能是有几个原因：
+  // 在图片格式上，不同web浏览器使用了不同的图形处理引擎、不同的图片导出选项、不同的默认压缩级别等。
+  // 在像素级别来看，操作系统各自使用了不同的设置和算法来进行抗锯齿和子像素渲染操作。
+  // 即使是相同的绘图操作，最终产生的图片数据在hash层面上依然是不同的。
+  // 实现代码大致为：在画布上渲染一些文字，再用 toDataURL 转换出来，即便开启了隐私模式一样可以拿到相同的值。
+
+  function createCanvasPrint(domain) {
+    function bin2hex(s) {
+      var i, l, o = '',
+        n;
+      s += '';
+      for (i = 0, l = s.length; i < l; i++) {
+        n = s.charCodeAt(i)
+          .toString(16);
+        o += n.length < 2 ? '0' + n : n;
+      }
+
+      return o;
+    }
+
+    function getUUID(domain) {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext("2d");
+      var txt = domain;
+      ctx.textBaseline = "top";
+      ctx.font = "14px 'Arial'";
+      ctx.textBaseline = "tencent";
+      ctx.fillStyle = "#f60";
+      ctx.fillRect(125, 1, 62, 20);
+      ctx.fillStyle = "#069";
+      ctx.fillText(txt, 2, 15);
+      ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+      ctx.fillText(txt, 4, 17);
+
+      var b64 = canvas.toDataURL().replace("data:image/png;base64,", "");
+      var bin = atob(b64);
+      var crc = bin2hex(bin.slice(-16, -12));
+      return crc;
+    }
+    return getUUID(domain)
+  }
+
+  console.log('canvasPrint-------', createCanvasPrint("https://www.baidu.com/"))
+
+// 此外还有 webgl 指纹，AudioContext指纹， 综合指纹（分析所有指纹，计算最终的唯一值）
+
+// fingerprintjs2是通过设备浏览器信息获取浏览器指纹的插件
+</script>
+
+</html>

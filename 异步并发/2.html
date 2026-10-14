@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <script>
+
+// Github 上 async-pool 这个库
+    class AsyncPool {
+      executing = [];
+      constructor(poolLimit) {
+        this.poolLimit = poolLimit || 5;
+      }
+      //promiseCreator:返回值为promise的任务函数
+      add(promiseCreator) {
+        if (this.executing.length < this.poolLimit) {
+          // 只要没有满载就将新任务添加进队列,让任务自己执行，执行完了将此任务自身踢出队列
+          // const p = Promise.resolve().then(() => promiseCreator()); //  可以将普通函数包装成 promise 
+
+          // Promise.resolve(promiseCreator()) 将普通函数的执行结果包装成 promise
+          const e = Promise.resolve(promiseCreator()).then((res) => {
+            this.executing.splice(this.executing.indexOf(e), 1);
+            return res;
+          });
+          this.executing.push(e);
+          return e;
+        } else {
+          // 满载时，就等到执行完一个任务再添加新的任务到队列
+          const race = Promise.race(this.executing);
+          return race.then(() => this.add(promiseCreator));
+        }
+      }
+    }
+
+    // -----------------test-------------------------
+    const pool = new AsyncPool(1);
+    const startTime = new Date().getTime();
+    const createTask = (task, time) => () =>
+      new Promise((resolve) => {
+        const endTime = new Date().getTime() - startTime;
+        console.log(`${endTime}ms--------${task}进入执行`);
+        setTimeout(() => {
+          resolve();
+          const endTime = new Date().getTime() - startTime;
+          console.log(`${endTime}ms--------${task}执行完毕，花费${time}ms`);
+        }, time);
+      }).catch((err) => { });
+    const task1 = createTask("task1", 100);
+    const task2 = createTask("task2", 500);
+    const task3 = createTask("task3", 300);
+    const task4 = createTask("task4", 100);
+    pool.add(task1);
+    pool.add(task2);
+    pool.add(task3);
+    pool.add(task4);
+
+
+
+  </script>
+</body>
+
+</html>

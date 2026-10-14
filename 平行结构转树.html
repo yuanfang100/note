@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>平行结构转树结构</title>
+</head>
+
+<body>
+  <img id="target" src="" alt="" width="=200" height="200">
+</body>
+<script>
+
+  let arr = [
+    { id: 1, name: '部门1', pid: 0 },
+    { id: 2, name: '部门2', pid: 1 },
+    { id: 3, name: '部门3', pid: 1 },
+    { id: 4, name: '部门4', pid: 3 },
+    { id: 5, name: '部门5', pid: 4 },
+    { id: 6, name: '部门6', pid: 1 },
+    { id: 7, name: '部门7', pid: 20 },
+    { id: 8, name: '部门8', pid: 7 },
+    { id: 9, name: '部门9', pid: 6 },
+    { id: 10, name: '部门10', pid: 0 },
+    { id: 15, name: '部门15', pid: 7 },
+    { id: 16, name: '部门16', pid: 15 },
+    { id: 0, name: '部门老总', pid: null },
+
+  ]
+
+  function getTree({ arr, idKey, pidKey }) {
+    let count = 1;
+
+    //  到 arr 中找到 id 值为 parentId 的节点，此节点就是 parent 
+    //  参数 id 值是为了优化
+    function findParent(arr, parentId, id) {
+      let parent = null
+      for (let a of arr) {
+        if(id && a[idKey] === id) continue // 此句为了性能优化，少遍历几次
+        count++
+        if (a[idKey] === parentId) return a
+        if (a.children && a.children.length > 0) {
+          let target = findParent(a.children, parentId)
+          if (target) return target
+        }
+      }
+      return parent
+    }
+
+    const newArr = [...arr] // 源数组复制一份
+
+    // 遍历数组，给每一个 item 找 parent，找到了就给他的 parent 添加一个 child，并且将此 item 踢出源数组，继续给下一个 item 找 parent
+    for (let i = 0; i < newArr.length; i++) {
+      let item = newArr[i]
+      let p = findParent(newArr, item[pidKey], item[idKey]); // item 在 arr 中，传入第三个参数为了性能优化，不遍历 item 自身
+      if (p) {
+        p.children = p.children || []
+        p.children.push({ ...item })
+        newArr.splice(i, 1)
+        i--
+      }
+    }
+    console.log('共找了%d次', count)
+    return newArr
+  }
+
+  console.log('tree11---', getTree({
+    arr, idKey: 'id', pidKey: 'pid'
+  }))
+
+
+
+
+
+
+
+//  见 MDN https://developer.mozilla.org/zh-CN/docs/Web/API/ReadableStream
+
+  const image = document.getElementById('target');
+  let src = 'https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fimg2.niutuku.com%2Fdesk%2F1207%2F0836%2Fntk54561.jpg&refer=http%3A%2F%2Fimg2.niutuku.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=auto?sec=1666160832&t=902dc0db1a5fedb3c9f471c2237c1178'
+  
+  // 请求原始图片
+  fetch(src)
+    // 取出 body
+    // .then(response => response.body)
+    .then(response => {
+      // image.src = src
+      const reader = response.body.getReader();
+      // 总长度
+      const contentLength = +response.headers.get('Content-Length');
+      let receivedLength = 0
+      console.log('contentLength----', contentLength)
+
+      return new ReadableStream({
+        start(controller) {
+          return pump();
+
+          function pump() {
+            return reader.read().then(({ done, value }) => {
+              // 读不到更多数据就关闭流
+              if (done) {
+                controller.close();
+                return;
+              }
+
+              // 将下一个数据块置入流中
+              controller.enqueue(value);
+              receivedLength += value.length;
+              console.log('已经接收了百分比----', receivedLength / contentLength)
+              return pump();
+            });
+          }
+        }
+      })
+    })
+    .then(stream => new Response(stream))
+    .then(response => response.blob())
+    .then(blob => URL.createObjectURL(blob))
+    .then(url => console.log(image.src = url))
+    .catch(err => console.error(err));
+</script>
+
+</html>

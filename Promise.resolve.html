@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <script>
+    let result = []
+    let iterator = Promise.resolve(3) // 得到一个包装后的 promise
+    let iterator2 = new Promise((resolve,reject)=>{
+      console.log('执行器2--会立即执行--')
+      setTimeout(()=>{
+        resolve(5)
+      },300)
+    })
+    // Promise.resolve 的作用简单说一句话： 不管接收什么值，都返回一个 promise
+    // 如果 Promise.resolve 接收一个普通值，就会将此值包装成 promise 返回
+    // 如果 Promise.resolve 接收一个 promise ，就会原样返回，即 Promise.resolve(iterator2).then(res)  等同于  iterator2.then(res) 
+    // Promise.resolve(iterator2) 执行后会返回 iterator2
+    // 以下两行是等同的
+    Promise.resolve(iterator2).then(
+      // iterator2.then(
+          (data) => {
+            result[0] = data; // 按顺序保存对应的结果
+            console.log(result)
+          },
+          (err) => {
+            debugger
+            // reject(err); // 任何一个Promise对象执行失败，则调用reject()方法
+            return;
+          }
+        );
+
+
+      // Promise 的 resolve 方法
+
+  //       static resolve(value) {
+  // // 判断当前传入对象是否为 Promise 对象
+  // // 是 --> 直接返回这个值
+  // // 否 --> 创建一个 Promise 对象调用 Promise 中的参数对象 resolve返回
+  //   if (value instanceof iPromise) return value
+  //   return new iPromise((resolve, reject) => {
+  //     resolve(value)
+  //   })
+  // }
+  </script>
+
+
+
+
+
+  
+</body>
+</html>

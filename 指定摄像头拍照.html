@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>获取摄像头</title>
+</head>
+
+<body>
+  <div class="inline-block rounded-6px overflow-hidden">
+    <video style="display: none" id="videoRef" class="videostyle" :width="props.width" :height="props.height"
+      autoPlay></video>
+    <canvas id="canvasRef" class="videostyle" width="500" height="500"></canvas>
+  </div>
+
+  <img id="imgBox" src="" style="width: 300px; height:300px; border: 1px solid #333" />
+
+  <button onclick="captrue()">拍照</button>
+</body>
+<script>
+  let canvasBox = document.getElementById('canvasRef');
+  let videoBox = document.getElementById('videoRef');
+  let cvsContext = canvasBox.getContext("2d");
+
+  let os = false;
+  let timer = null;
+  let props = {
+    width: 500,
+    height: 500,
+    cameraLabel: "Simbok U1000" // 指定名称的摄像头, 找不到就打开第一个
+  }
+/**
+ *  S1000P                            高拍仪
+    RGB Camera                        人像比对1
+    IR Camera                         人像比对2
+    Simbok U1000                      虹膜
+    Intel Virtual Camera              inter
+*/
+
+  const getCompetence = () => {
+    return new Promise(async (resolve, reject) => {
+      os = false;
+      // canvasBox = canvasRef.value;
+      // cvsContext = canvasBox.getContext("2d");
+      // videoBox = videoRef.value;
+      // closedPhono = videoBox;
+      if (navigator.mediaDevices === undefined) {
+        navigator.mediaDevices = {};
+      }
+      if (navigator.mediaDevices.getUserMedia === undefined) {
+        navigator.mediaDevices.getUserMedia = function (constraints) {
+          // 首先获取现存的getUserMedia(如果存在)
+          let getUserMedia = navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.getUserMedia;
+          if (!getUserMedia) {
+            return Promise.reject(new Error("getUserMedia is not implemented in this browser"));
+          }
+          return new Promise(function (resolve, reject) {
+            getUserMedia.call(navigator, constraints, resolve, reject);
+          });
+        };
+      }
+
+      const constraints = await getConstraints(props.cameraLabel);
+      navigator.mediaDevices
+        .getUserMedia(constraints)
+        .then(function (stream) {
+          if ("srcObject" in videoBox) {
+            videoBox.srcObject = stream;
+          } else {
+            videoBox.src = window.URL.createObjectURL(stream);
+          }
+          videoBox.onloadedmetadata = function (e) {
+            videoBox.play();
+          };
+          resolve();
+          AllowPhoto = true;
+        })
+        .catch((err) => {
+          reject();
+          ElMessage.error("没有开启摄像头权限或摄像头被其他应用占用");
+          AllowPhoto = false;
+        });
+
+    });
+  };
+
+  function getConstraints(targetLabel = "") {
+    return new Promise((resolve, reject) => {
+      // 先授权
+      navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      navigator.mediaDevices
+        .enumerateDevices()
+        .then((devices) => {
+          gotDevices(devices);
+          setTimeout(() => {
+            console.log("全部设备-----", devices);
+          }, 2000);
+        })
+        .catch((error) => {
+          console.log("Error: ", error);
+        });
+
+      function gotDevices(deviceInfos) {
+        // console.log(
+        //   "全部视频设备-----",
+        //   deviceInfos.map((v) => v.label + "----;")
+        // );
+        const constraints = deviceInfos
+          .filter((v) => v.kind === "videoinput")
+          .map((device, index) => {
+            return {
+              audio: false,
+              video: {
+                kind: device.kind,
+                label: device.label,
+                groupId: device.groupId,
+                deviceId: device.deviceId || index + 1,
+                width: props.width,
+                height: props.height,
+                // transform: "scaleX(-1)",
+              },
+            };
+          });
+
+        console.log(
+          "全部视频设备-----",
+          constraints.map((v) => v.video.label)
+        );
+
+        if (constraints.length === 0) {
+          alert("没有摄像头,请检查硬件")
+          return reject();
+        } else if (constraints.length === 1 || !targetLabel) {
+          return resolve(constraints[0]);
+        } else {
+          const target = constraints.find((v) => v.video.label.indexOf(targetLabel) >= 0);
+          if (target) return resolve(target);
+          return resolve(constraints[0]);
+        }
+      }
+    });
+  };
+  //绘制图片
+  function drawImage() {
+    const capture = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      if (!drawing) return;
+      cvsContext.drawImage(videoBox, 0, 0, props.width, props.height);
+      timer = setTimeout(capture, 200);
+    };
+    getCompetence().then((res) => {
+      capture();
+    });
+  };
+  function stopDraw() {
+    drawing = false;
+  };
+  const beginDraw = () => {
+    drawing = true;
+    drawImage();
+  };
+  // 拍照
+  const getBase64Img = () => {
+    stopDraw();
+    return canvasBox.toDataURL("image/png");
+  };
+  function captrue() {
+    const imgurl = getBase64Img();
+    document.getElementById('imgBox').src = imgurl;
+  }
+
+  setTimeout(beginDraw, 2000)
+</script>
+
+</html>
